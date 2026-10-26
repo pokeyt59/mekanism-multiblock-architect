@@ -6,6 +6,10 @@ Minecraft **1.20.1 · Forge**. An unofficial companion to **Just Enough Mekanism
 
 [日本語](README.ja.md) · [Downloads](https://github.com/syarukasu/mekanism-multiblock-architect/releases) · [Issues](https://github.com/syarukasu/mekanism-multiblock-architect/issues)
 
+![Live turbine settings and performance beside the preview (development build)](docs/screenshots/live-preview.png)
+
+![Textured fission reactor hologram with material and placement guidance](docs/screenshots/world-hologram.png)
+
 ## Preview, plan, build
 
 - One equipment category with a rotatable, zoomable preview beside JEMM's settings and performance.
