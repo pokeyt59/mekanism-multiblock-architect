@@ -1,0 +1,7 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="MIT"
+[[mods]]
+modId="mekpreview_server_test"
+version="1.0"
+displayName="Standalone Placement Tests"

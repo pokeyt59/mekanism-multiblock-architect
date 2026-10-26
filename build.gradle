@@ -1,0 +1,131 @@
+plugins { id 'net.minecraftforge.gradle' version '6.0.54' }
+group = 'com.syaru.mekpreview'
+version = '0.1.0-alpha.8'
+base { archivesName = 'mekaplan-forge-1.20.1' }
+java { toolchain.languageVersion = JavaLanguageVersion.of(17); withSourcesJar() }
+repositories {
+    mavenCentral()
+    maven { url = 'https://api.modrinth.com/maven'; content { includeGroup 'maven.modrinth' } }
+    maven { url = 'https://cursemaven.com'; content { includeGroup 'curse.maven' } }
+    if (project.hasProperty('localDeps') || project.hasProperty('addons')) flatDir { dirs 'deps' }
+}
+// Immutable upstream versions; local copies remain available for offline development.
+def upstream = [
+    'local:ldlib-forge-1.20.1:1.0.50': 'maven.modrinth:B1CBVXHX:CIHXdHUw',
+    'local:emi-forge-1.20.1:1.1.24': 'maven.modrinth:fRiHVvU7:Axuu9I9R',
+    'local:mekanism-1.20.1:10.4.16.80': 'maven.modrinth:Ce6I4WUE:uxe1WQp4',
+    'local:jemm-1.20.1:4.27': 'curse.maven:just-enough-mekanism-multiblocks-898746:9068209',
+    'local:tmrv-forge-1.20.1:0.9.0': 'maven.modrinth:yFypjcfd:PSC3dlCl',
+    'local:jei-1.20.1-forge:15.20.0.132': 'maven.modrinth:u6dRKJwZ:p5mYHvjx',
+    'local:mekanism-generators-1.20.1:10.4.16.80': 'maven.modrinth:OFVYKsAk:Th4Czz4N'
+]
+def modDependency = { notation -> fg.deobf(project.hasProperty('localDeps') ? notation : upstream[notation]) }
+sourceSets {
+    test { java.srcDir 'src/gameTest/java/com/syaru/mekpreview/test/fixture' }
+    gameTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+    serverTest {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+minecraft {
+    mappings channel: 'official', version: '1.20.1'
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            jvmArgs '-Xmx3G'
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', project.file('build/createSrgToMcp/output.srg').absolutePath
+            args '-mixin.config=mekpreview.mixins.json'
+            mods { mekpreview { source sourceSets.main } }
+        }
+        client {
+            if (!project.hasProperty('jei')) property 'mekpreview.tmrv', 'true'
+            if (project.hasProperty('visualSmoke')) {
+                property 'mekpreview.visualSmoke', 'true'
+                if (project.hasProperty('placementSmoke')) property 'mekpreview.placementSmoke', 'true'
+                args '--width', '1280', '--height', '800'
+                mods { mekpreview_test { source sourceSets.gameTest } }
+            }
+        }
+        gameTestServer {
+            if (project.hasProperty('serverOnly')) {
+                workingDirectory project.file('build/server-placement-test')
+                property 'forge.enabledGameTestNamespaces', 'mekpreview_server_test'
+                mods { mekpreview_server_test { source sourceSets.serverTest } }
+            } else {
+                workingDirectory project.file('build/gametest')
+                property 'forge.enabledGameTestNamespaces', 'mekpreview_test'
+                mods { mekpreview_test { source sourceSets.gameTest } }
+            }
+        }
+    }
+}
+dependencies {
+    minecraft 'net.minecraftforge:forge:1.20.1-47.4.18'
+    for (notation in ['local:ldlib-forge-1.20.1:1.0.50', 'local:emi-forge-1.20.1:1.1.24',
+                      'local:mekanism-1.20.1:10.4.16.80', 'local:jemm-1.20.1:4.27']) {
+        add(project.hasProperty('serverOnly') ? 'compileOnly' : 'implementation', modDependency(notation))
+    }
+    compileOnly modDependency('local:tmrv-forge-1.20.1:0.9.0')
+    if (!project.hasProperty('serverOnly')) {
+        if (project.hasProperty('jei')) runtimeOnly modDependency('local:jei-1.20.1-forge:15.20.0.132')
+        else runtimeOnly modDependency('local:tmrv-forge-1.20.1:0.9.0')
+        runtimeOnly modDependency('local:mekanism-generators-1.20.1:10.4.16.80')
+        if (project.hasProperty('addons')) {
+            runtimeOnly fg.deobf('local:morethermalevaporation-1.20.1:3.1.0')
+            if (project.hasProperty('mteCompat')) {
+                runtimeOnly fg.deobf('local:mte-compat-1.20.1:2.3-fix1')
+            }
+            if (project.hasProperty('mteCompat') || project.hasProperty('extras'))
+                runtimeOnly fg.deobf('local:mekanism-extras-1.20.1:1.5.0')
+            runtimeOnly fg.deobf('local:nova-mekanism-1.20.1:1.2.2-release')
+        }
+    }
+    testImplementation platform('org.junit:junit-bom:5.10.3')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+tasks.named('processResources') {
+    inputs.property 'version', project.version
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
+}
+tasks.named('jar') {
+    finalizedBy 'reobfJar'
+    from('LICENSE')
+    manifest { attributes 'MixinConfigs': 'mekpreview.mixins.json' }
+}
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('test') { useJUnitPlatform() }
+tasks.matching { it.name == 'runClient' }.configureEach {
+    if (project.hasProperty('visualSmoke')) {
+        doFirst { java.nio.file.Files.deleteIfExists(file('run/visual-result.txt').toPath()) }
+        doLast {
+            def result = file('run/visual-result.txt')
+            if (!result.isFile() || !result.text.startsWith('PASS:'))
+                throw new GradleException('Client visual smoke did not finish successfully')
+        }
+    }
+}
+tasks.register('projectZip', Zip) {
+    archiveBaseName = 'mekaplan-forge-1.20.1'
+    archiveClassifier = 'project'
+    destinationDirectory = layout.buildDirectory.dir('distributions')
+    from(projectDir) {
+        exclude 'build/**', '.gradle/**', 'run/**', 'deps/**', '.idea/**', '.git/**', '.env', '.env.*', '*.log'
+    }
+}
+tasks.matching { it.name == 'runGameTestServer' }.configureEach {
+    def reportPath = project.hasProperty('serverOnly') ? 'build/server-placement-test/results.xml' : 'build/gametest/results.xml'
+    doFirst { java.nio.file.Files.deleteIfExists(file(reportPath).toPath()) }
+    doLast {
+        def report = file(reportPath)
+        if (!report.isFile()) throw new GradleException('Missing formation test report')
+        def cases = new groovy.xml.XmlSlurper().parse(report).depthFirst().findAll { it.name() == 'testcase' }
+        if (cases.size() != (project.hasProperty('serverOnly') ? 13 : 24) || cases.any { !it.failure.isEmpty() || !it.error.isEmpty() || !it.skipped.isEmpty() })
+            throw new GradleException('Multiblock formation tests failed or incomplete')
+    }
+}
