@@ -72,6 +72,11 @@ public final class ClientSmoke {
             }
             if (mc.level == null || mc.player == null || mc.getSingleplayerServer() == null) return;
             tick++;
+            if (Boolean.getBoolean("mekpreview.hudSmoke")) {
+                MaterialHudSmoke.tick(mc, tick);
+                if (tick == 240) finish(mc, "PASS: material HUD displays more than five types, wraps names, scrolls to the final item, clamps after resizing and resets with layer/plan/world changes.");
+                return;
+            }
             if (tick == 150 && Boolean.getBoolean("mekpreview.placementSmoke")) tick = 1099;
             if (tick == 20) {
                 mc.setScreen(null);

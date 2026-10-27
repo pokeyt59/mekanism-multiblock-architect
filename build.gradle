@@ -1,6 +1,6 @@
 plugins { id 'net.minecraftforge.gradle' version '6.0.54' }
 group = 'com.syaru.mekpreview'
-version = '0.1.0-alpha.8'
+version = '0.1.0-alpha.9'
 base { archivesName = 'mekaplan-forge-1.20.1' }
 java { toolchain.languageVersion = JavaLanguageVersion.of(17); withSourcesJar() }
 repositories {
@@ -46,6 +46,7 @@ minecraft {
             if (!project.hasProperty('jei')) property 'mekpreview.tmrv', 'true'
             if (project.hasProperty('visualSmoke')) {
                 property 'mekpreview.visualSmoke', 'true'
+                if (project.hasProperty('hudSmoke')) property 'mekpreview.hudSmoke', 'true'
                 if (project.hasProperty('placementSmoke')) property 'mekpreview.placementSmoke', 'true'
                 args '--width', '1280', '--height', '800'
                 mods { mekpreview_test { source sourceSets.gameTest } }

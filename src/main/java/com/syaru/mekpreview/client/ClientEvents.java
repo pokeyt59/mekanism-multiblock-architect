@@ -65,6 +65,9 @@ public final class ClientEvents {
         while (DOWN.consumeClick()) Hologram.nudge(0, -1, 0);
     }
     @SubscribeEvent public static void render(RenderLevelStageEvent event) { HologramRenderer.render(event); }
+    @SubscribeEvent public static void materialScroll(net.minecraftforge.client.event.InputEvent.MouseScrollingEvent event) {
+        if (net.minecraft.client.gui.screens.Screen.hasAltDown() && MaterialHud.scroll(event.getScrollDelta())) event.setCanceled(true);
+    }
     @SubscribeEvent public static void recipeKey(net.minecraftforge.client.event.ScreenEvent.KeyPressed.Pre event) {
         if (event.getScreen() instanceof com.syaru.mekpreview.client.design.DesignInputScreen editor
                 && editor.mekpreview$focusedInput() != null) return;
@@ -95,26 +98,13 @@ public final class ClientEvents {
                 .append(" / " + (Hologram.settings().layer + 1)), x, y + 48, 0xCCD6E4, false);
         g.drawString(mc.font, Component.translatable("mekpreview.opacity", Math.round(Hologram.opacity() * 100),
                 OPACITY.getTranslatedKeyMessage()), x, y + 60, 0xCCD6E4, false);
-        if (com.syaru.mekpreview.ClientOptions.MATERIAL_HUD.get() && !ConstructionMaterials.rows().isEmpty()) {
-            var rows = ConstructionMaterials.rows(); int top = y + 82;
-            int count = Math.min(5, rows.size());
-            g.fill(x - 3, top - 3, x + 308, top + 14 + count * 18 + (rows.size() > count ? 12 : 0), 0xB0101722);
-            g.drawString(mc.font, Component.translatable("mekpreview.build.materials"), x, top, 0x8FE7FF, false);
-            for (int i = 0; i < count; i++) {
-                var row = rows.get(i); int ry = top + 13 + i * 18;
-                var stack = BlockResolver.item(row.itemId()); g.renderItem(stack, x, ry);
-                g.drawString(mc.font, mc.font.plainSubstrByWidth(stack.getHoverName().getString(), 175), x + 20, ry + 4, 0xFFFFFF, false);
-                g.drawString(mc.font, Component.translatable("mekpreview.build.material_row", row.remaining(), row.available(), row.missing()),
-                        x + 198, ry + 4, row.missing() > 0 ? 0xFF7979 : 0x9FE0A3, false);
-            }
-            if (rows.size() > count) g.drawString(mc.font, Component.translatable("mekpreview.build.more", rows.size() - count),
-                    x, top + 14 + count * 18, 0xCCD6E4, false);
-        }
+        MaterialHud.render(g);
         var target = Hologram.target();
         if (target != null) {
             var stack = new net.minecraft.world.item.ItemStack(target.expected().getBlock());
             int tx = event.getWindow().getGuiScaledWidth() / 2 - 112;
             int ty = event.getWindow().getGuiScaledHeight() / 2 + 26;
+            tx = MaterialHud.targetX(tx, ty);
             g.fill(tx - 4, ty - 4, tx + 228, ty + 59, 0xDA101722);
             g.renderItem(stack, tx, ty);
             g.drawString(mc.font, stack.getHoverName(), tx + 22, ty + 3, 0xFFFFFF, false);

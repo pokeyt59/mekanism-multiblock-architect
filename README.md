@@ -65,6 +65,8 @@ With MekaPlan on the server, right-click a projected block to place it, or Shift
 
 Client options: `config/mekpreview-client.toml`. Favorites: `config/mekpreview/favorites.json` (128 designs, previous-file backup).
 
+The material HUD grows to the available screen height. If the list still overflows, hold **Alt** and scroll the mouse wheel to reach every item. Long item names wrap; quantities are right-aligned. Ordinary scrolling keeps its normal hotbar behavior.
+
 ## Scope
 
 JEMM and supported addons supply structure data and performance calculations. Rates are calculated estimates, not running-machine measurements. Nova's fixed structures are not resizable. Optional integrations are version-specific, not a universal addon parser.
@@ -80,7 +82,7 @@ Install a Java 17 JDK. The Gradle wrapper downloads pinned upstream dependencies
 ./gradlew runGameTestServer -PserverOnly
 ```
 
-On Windows use gradlew.bat. There are 53 unit tests and 13 dedicated-server placement tests; the latter run without client-only dependencies at runtime.
+On Windows use gradlew.bat. There are 62 unit tests and 13 dedicated-server placement tests; the latter run without client-only dependencies at runtime. `runClient -PvisualSmoke -PhudSmoke` checks material HUD overflow and resizing in the development client.
 
 `runClient -PvisualSmoke` launches an isolated development client and creates a QA world under run/. It does not change a Prism instance or an external server. `-Pjei` selects real JEI. `-PlocalDeps` uses SHA-256-checked copies prepared by `prepare-deps.ps1 -ModsPath <directory>` (add `-IncludeJei` for JEI). Offline builds still need cached Forge/Gradle artifacts.
 

@@ -1,3 +1,12 @@
+# 0.1.0-alpha.9
+
+- Remove the five-item limit from the construction material HUD.
+- Grow the list to the screen height; Alt + mouse wheel reaches every overflow row.
+- Wrap long item names, align counts and avoid covering the target-block card.
+- Keep normal hotbar scrolling, material quantities and placement protocol unchanged.
+
+Client HUD fix; placement protocol 2 remains compatible with alpha.8 servers.
+
 # 0.1.0-alpha.8
 
 First public alpha under the MekaPlan name. Minecraft 1.20.1, Forge 47.4.18.

@@ -13,7 +13,7 @@ public final class ConstructionMaterials {
     private static List<MaterialPlan.Row> rows = List.of();
     private static long checked = Long.MIN_VALUE;
     public static List<MaterialPlan.Row> rows() { return rows; }
-    public static void clear() { previous = null; rows = List.of(); checked = Long.MIN_VALUE; }
+    public static void clear() { previous = null; rows = List.of(); checked = Long.MIN_VALUE; MaterialHud.clear(); }
     public static void tick() {
         var mc = Minecraft.getInstance();
         if (!Hologram.active() || mc.player == null || mc.level == null) { clear(); return; }
