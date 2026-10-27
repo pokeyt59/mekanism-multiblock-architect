@@ -75,7 +75,7 @@ public final class JemmPreviewWidget extends WidgetGroup {
                     Blueprint captured = snapshot;
                     frozen.source = () -> captured;
                     Hologram.start(frozen);
-                    // Close the underlying inventory too, not just EMI's screen.
+                    // Close the underlying inventory too, not just JEI's screen.
                     // Otherwise a recipe-viewer parent can retain a stale container.
                     Minecraft mc = Minecraft.getInstance();
                     if (mc.player != null) mc.player.closeContainer();

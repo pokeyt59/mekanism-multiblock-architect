@@ -1,22 +1,23 @@
 plugins { id 'net.minecraftforge.gradle' version '6.0.54' }
 group = 'com.syaru.mekpreview'
-version = '0.1.0-alpha.9'
+version = '0.1.0-alpha.9-jei.1'
 base { archivesName = 'mekaplan-forge-1.20.1' }
 java { toolchain.languageVersion = JavaLanguageVersion.of(17); withSourcesJar() }
 repositories {
     mavenCentral()
     maven { url = 'https://api.modrinth.com/maven'; content { includeGroup 'maven.modrinth' } }
     maven { url = 'https://cursemaven.com'; content { includeGroup 'curse.maven' } }
+    maven { url = 'https://maven.blamejared.com/'; content { includeGroup 'mezz.jei' } }
     if (project.hasProperty('localDeps') || project.hasProperty('addons')) flatDir { dirs 'deps' }
 }
 // Immutable upstream versions; local copies remain available for offline development.
 def upstream = [
     'local:ldlib-forge-1.20.1:1.0.50': 'maven.modrinth:B1CBVXHX:CIHXdHUw',
-    'local:emi-forge-1.20.1:1.1.24': 'maven.modrinth:fRiHVvU7:Axuu9I9R',
     'local:mekanism-1.20.1:10.4.16.80': 'maven.modrinth:Ce6I4WUE:uxe1WQp4',
     'local:jemm-1.20.1:4.27': 'curse.maven:just-enough-mekanism-multiblocks-898746:9068209',
-    'local:tmrv-forge-1.20.1:0.9.0': 'maven.modrinth:yFypjcfd:PSC3dlCl',
-    'local:jei-1.20.1-forge:15.20.0.132': 'maven.modrinth:u6dRKJwZ:p5mYHvjx',
+    // JEI is the recipe viewer for this port. The code only uses API from 15.38 onwards;
+    // the build compiles and runs against a current 1.20.1 release.
+    'local:jei-1.20.1-forge:15.74.0.230': 'mezz.jei:jei-1.20.1-forge:15.74.0.230',
     'local:mekanism-generators-1.20.1:10.4.16.80': 'maven.modrinth:OFVYKsAk:Th4Czz4N'
 ]
 def modDependency = { notation -> fg.deobf(project.hasProperty('localDeps') ? notation : upstream[notation]) }
@@ -43,7 +44,6 @@ minecraft {
             mods { mekpreview { source sourceSets.main } }
         }
         client {
-            if (!project.hasProperty('jei')) property 'mekpreview.tmrv', 'true'
             if (project.hasProperty('visualSmoke')) {
                 property 'mekpreview.visualSmoke', 'true'
                 if (project.hasProperty('hudSmoke')) property 'mekpreview.hudSmoke', 'true'
@@ -67,14 +67,11 @@ minecraft {
 }
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.18'
-    for (notation in ['local:ldlib-forge-1.20.1:1.0.50', 'local:emi-forge-1.20.1:1.1.24',
-                      'local:mekanism-1.20.1:10.4.16.80', 'local:jemm-1.20.1:4.27']) {
+    for (notation in ['local:ldlib-forge-1.20.1:1.0.50', 'local:mekanism-1.20.1:10.4.16.80',
+                      'local:jemm-1.20.1:4.27', 'local:jei-1.20.1-forge:15.74.0.230']) {
         add(project.hasProperty('serverOnly') ? 'compileOnly' : 'implementation', modDependency(notation))
     }
-    compileOnly modDependency('local:tmrv-forge-1.20.1:0.9.0')
     if (!project.hasProperty('serverOnly')) {
-        if (project.hasProperty('jei')) runtimeOnly modDependency('local:jei-1.20.1-forge:15.20.0.132')
-        else runtimeOnly modDependency('local:tmrv-forge-1.20.1:0.9.0')
         runtimeOnly modDependency('local:mekanism-generators-1.20.1:10.4.16.80')
         if (project.hasProperty('addons')) {
             runtimeOnly fg.deobf('local:morethermalevaporation-1.20.1:3.1.0')

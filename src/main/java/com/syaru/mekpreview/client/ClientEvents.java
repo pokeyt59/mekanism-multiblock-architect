@@ -2,7 +2,9 @@ package com.syaru.mekpreview.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.syaru.mekpreview.MekPreview;
+import com.syaru.mekpreview.jei.PlannerCategory;
 import com.syaru.mekpreview.jemm.JemmIntegration;
+import mezz.jei.api.runtime.IRecipesGui;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
@@ -10,8 +12,10 @@ import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.client.event.RegisterKeyMappingsEvent;
 import net.minecraftforge.client.event.RenderGuiOverlayEvent;
 import net.minecraftforge.client.event.RenderLevelStageEvent;
+import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.client.settings.KeyConflictContext;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import org.lwjgl.glfw.GLFW;
@@ -46,6 +50,7 @@ public final class ClientEvents {
         Hologram.tick();
         InventoryAssist.tick();
         ConstructionMaterials.tick();
+        PlannerCategory.tick(mc.screen != null);
         if (mc.screen != null || mc.player == null) return;
         while (OPEN.consumeClick()) JemmIntegration.openFirst();
         while (ANCHOR.consumeClick()) Hologram.anchor();
@@ -68,14 +73,23 @@ public final class ClientEvents {
     @SubscribeEvent public static void materialScroll(net.minecraftforge.client.event.InputEvent.MouseScrollingEvent event) {
         if (net.minecraft.client.gui.screens.Screen.hasAltDown() && MaterialHud.scroll(event.getScrollDelta())) event.setCanceled(true);
     }
-    @SubscribeEvent public static void recipeKey(net.minecraftforge.client.event.ScreenEvent.KeyPressed.Pre event) {
-        if (event.getScreen() instanceof com.syaru.mekpreview.client.design.DesignInputScreen editor
-                && editor.mekpreview$focusedInput() != null) return;
-        if (!(event.getScreen() instanceof dev.emi.emi.screen.RecipeScreen) || dev.emi.emi.api.EmiApi.isSearchFocused()
-                || !OPEN.matches(event.getKeyCode(), event.getScanCode())) return;
-        if (event.getScreen().getFocused() instanceof net.minecraft.client.gui.components.EditBox input && input.isFocused()) return;
-        var hovered = dev.emi.emi.api.EmiApi.getHoveredStack(true).getRecipeContext();
-        if (com.syaru.mekpreview.jemm.NovaRecipeLink.open(hovered)) event.setCanceled(true);
+    /** JEI passes no typed text to recipe pages, so the focused planner text box gets it first. */
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void plannerTyped(ScreenEvent.CharacterTyped.Pre event) {
+        if (!(event.getScreen() instanceof IRecipesGui)) return;
+        var input = PlannerCategory.focusedInput();
+        if (input == null) return;
+        input.charTyped(event.getCodePoint(), event.getModifiers());
+        event.setCanceled(true);
+    }
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public static void plannerKey(ScreenEvent.KeyPressed.Pre event) {
+        if (!(event.getScreen() instanceof IRecipesGui)) return;
+        var input = PlannerCategory.focusedInput();
+        if (input == null) return;
+        if (event.getKeyCode() == GLFW.GLFW_KEY_ESCAPE) { input.setFocus(false); return; }
+        input.keyPressed(event.getKeyCode(), event.getScanCode(), event.getModifiers());
+        event.setCanceled(true); // Keep JEI and inventory shortcuts (Backspace = back, E = close) out of the text box.
     }
     @SubscribeEvent
     public static void overlay(RenderGuiOverlayEvent.Post event) {

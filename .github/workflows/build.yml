@@ -13,8 +13,27 @@ jobs:
           java-version: '17'
       - uses: gradle/actions/setup-gradle@v4
       - run: chmod +x gradlew
-      - run: ./gradlew build
+      - name: Build the mod jar
+        run: ./gradlew build 2>&1 | tee build.log; exit ${PIPESTATUS[0]}
       - uses: actions/upload-artifact@v4
         with:
           name: mekaplan
           path: build/libs/*.jar
+      # The in-game test sources are not part of `build`; compile them so they stay in step with the mod.
+      - name: Compile in-game test sources
+        run: ./gradlew compileGameTestJava compileServerTestJava 2>&1 | tee -a build.log; exit ${PIPESTATUS[0]}
+      - name: Report compiler errors
+        if: failure()
+        run: |
+          errors=$(awk '
+            /\.java:[0-9]+: error:/ {
+              if (msg) print msg
+              match($0, /src\/[^:]+\.java/); file = substr($0, RSTART, RLENGTH)
+              rest = substr($0, RSTART + RLENGTH + 1); split(rest, parts, ":"); line = parts[1]
+              sub(/^.*: error: /, ""); msg = "::error file=" file ",line=" line "::" $0; extra = 0; next
+            }
+            msg && extra < 4 { gsub(/^ +/, ""); msg = msg "%0A" $0; extra++; next }
+            END { if (msg) print msg }' build.log | head -40)
+          if [ -n "$errors" ]; then echo "$errors"; else
+            echo "::error::$(sed -n '/What went wrong/,/Try:/p' build.log | head -25 | sed ':a;N;$!ba;s/\n/%0A/g')"
+          fi

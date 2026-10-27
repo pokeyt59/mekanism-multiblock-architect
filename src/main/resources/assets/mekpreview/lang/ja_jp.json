@@ -5,7 +5,7 @@
   "mekpreview.search.hint": "レシピ・材料・IDを検索",
   "mekpreview.search.empty": "一致するレシピなし",
   "mekpreview.search.preview": "設備プレビュー",
-  "mekpreview.search.link_hint": "EMIのレシピ出力にカーソルを合わせ、設備一覧キー（初期K）でも連動",
+  "mekpreview.search.link_hint": "JEIのレシピ横にある設備プレビューボタンでも連動",
   "mekpreview.materials.all": "全体",
   "mekpreview.materials.visible": "表示中",
   "mekpreview.materials.missing_only": "不足のみ",

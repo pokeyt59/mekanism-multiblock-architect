@@ -1,9 +1,9 @@
 package com.syaru.mekpreview.client.design;
 
+import com.syaru.mekpreview.jei.MekaPlanJeiPlugin;
+import com.syaru.mekpreview.jei.PlannerRecipe;
 import com.syaru.mekpreview.jemm.*;
 import com.syaru.mekpreview.structure.LayerMode;
-import dev.emi.emi.api.EmiApi;
-import dev.emi.emi.api.recipe.EmiRecipe;
 import giselle.jei_mekanism_multiblocks.client.jei.MultiblockWidget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.*;
@@ -20,12 +20,10 @@ public final class FavoriteClient {
     }
     public static FavoritesStore.View view(MultiblockWidget model) { return VIEWS.get(model); }
     public static void remember(MultiblockWidget model, FavoritesStore.View view) { VIEWS.put(model, view); }
-    public static Map<String, EmiRecipe> available() {
-        Map<String, EmiRecipe> designs = new LinkedHashMap<>();
-        for (var recipe : EmiApi.getRecipeManager().getRecipes()) {
-            var model = JemmIntegration.model(recipe);
-            if (model != null) designs.putIfAbsent(JemmIntegration.equipmentKey(model), recipe);
-        }
+    public static Map<String, PlannerRecipe> available() {
+        Map<String, PlannerRecipe> designs = new LinkedHashMap<>();
+        for (var recipe : MekaPlanJeiPlugin.recipes())
+            designs.putIfAbsent(JemmIntegration.equipmentKey(recipe.model()), recipe);
         return designs;
     }
     public static void restoreModel(MultiblockWidget model, FavoritesStore.Favorite favorite) throws Exception {
@@ -41,7 +39,7 @@ public final class FavoriteClient {
     public static boolean open(FavoritesStore.Favorite favorite) {
         var recipe = available().get(favorite.equipment());
         if (recipe == null) { message("mekpreview.favorites.unavailable"); return false; }
-        try { restoreModel(JemmIntegration.model(recipe), favorite); EmiApi.displayRecipe(recipe); return true; }
+        try { restoreModel(recipe.model(), favorite); return MekaPlanJeiPlugin.show(recipe); }
         catch (Exception e) { failure(e); return false; }
     }
     public static void message(String key) {

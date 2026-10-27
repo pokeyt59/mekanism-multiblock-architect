@@ -5,7 +5,7 @@
   "mekpreview.search.hint": "Recipe, input, output, ID",
   "mekpreview.search.empty": "No matching recipes",
   "mekpreview.search.preview": "Equipment preview",
-  "mekpreview.search.link_hint": "Hover an EMI recipe output and press the equipment key (default K) to link it",
+  "mekpreview.search.link_hint": "Recipes a Nova machine can run also get an equipment-preview button beside them in JEI",
   "mekpreview.materials.all": "All",
   "mekpreview.materials.visible": "Visible",
   "mekpreview.materials.missing_only": "Missing",

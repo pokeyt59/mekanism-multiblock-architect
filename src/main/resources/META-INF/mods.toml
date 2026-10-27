@@ -1,19 +1,20 @@
 modLoader="javafml"
 loaderVersion="[47,)"
 license="MIT"
-issueTrackerURL="https://github.com/syarukasu/mekanism-multiblock-architect/issues"
+issueTrackerURL="https://github.com/pokeyt59/mekanism-multiblock-architect/issues"
 [[mods]]
 modId="mekpreview"
 version="${version}"
-displayName="MekaPlan"
-displayURL="https://github.com/syarukasu/mekanism-multiblock-architect"
+displayName="MekaPlan (JEI)"
+displayURL="https://github.com/pokeyt59/mekanism-multiblock-architect"
 logoFile="mekaplan.png"
-authors="syaru"
+authors="syaru (JEI port: pokeyt59)"
 displayTest="IGNORE_ALL_VERSION"
 description='''
 GT-style LDLib previews and construction holograms linked to JEMM's live designs.
-One equipment category, live editing, layers and projection. Optional server-side
+One equipment category in JEI, live editing, layers and projection. Optional server-side
 inventory-backed placement requires only Forge, not JEMM or recipe viewers.
+Unofficial JEI port of MekaPlan by syaru; EMI is not required.
 '''
 [[dependencies.mekpreview]]
 modId="forge"
@@ -40,12 +41,6 @@ versionRange="[1.0.50,1.1)"
 ordering="AFTER"
 side="CLIENT"
 [[dependencies.mekpreview]]
-modId="emi"
-mandatory=true
-versionRange="[1.1.24,2)"
-ordering="AFTER"
-side="CLIENT"
-[[dependencies.mekpreview]]
 modId="jei_mekanism_multiblocks"
 mandatory=true
 versionRange="[4.27,4.28)"
@@ -54,7 +49,7 @@ side="CLIENT"
 [[dependencies.mekpreview]]
 modId="jei"
 mandatory=true
-versionRange="[15.20.0.106,16)"
+versionRange="[15.38,16)"
 ordering="AFTER"
 side="CLIENT"
 [[dependencies.mekpreview]]

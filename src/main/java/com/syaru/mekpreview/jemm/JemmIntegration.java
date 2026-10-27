@@ -1,17 +1,15 @@
 package com.syaru.mekpreview.jemm;
 
-import dev.emi.emi.api.EmiApi;
-import dev.emi.emi.api.recipe.EmiRecipe;
-import giselle.jei_mekanism_multiblocks.client.emi.EMIMultiblockRecipe;
+import com.syaru.mekpreview.jei.MekaPlanJeiPlugin;
+import com.syaru.mekpreview.jei.PlannerRecipe;
 import giselle.jei_mekanism_multiblocks.client.jei.MultiblockWidget;
 import com.syaru.mekpreview.structure.StructureKind;
 
 public final class JemmIntegration {
     private JemmIntegration() {}
-    public static MultiblockWidget model(EmiRecipe recipe) {
-        if (recipe instanceof JemmRecipeAccess access) return access.mekpreview$model();
-        return recipe instanceof EMIMultiblockRecipe<?> linked
-                && linked.getRecipe() instanceof MultiblockWidget model && supports(model) ? model : null;
+    /** The live JEMM design behind a planner page, or null for any other recipe. */
+    public static MultiblockWidget model(Object recipe) {
+        return recipe instanceof PlannerRecipe planner ? planner.model() : null;
     }
     public static boolean supports(MultiblockWidget model) { return model.canCreatePreview() || MtePreview.supports(model); }
     public static MultiblockWidget adapt(Object source) {
@@ -25,7 +23,7 @@ public final class JemmIntegration {
         return null;
     }
     public static void openFirst() {
-        EmiApi.displayRecipeCategory(JemmCategoryPlugin.CATEGORY);
+        MekaPlanJeiPlugin.openCategory();
     }
     public static String equipmentKey(MultiblockWidget model) {
         return model instanceof NovaMultiblockWidget nova ? nova.equipmentKey() : model.getClass().getName();
@@ -37,11 +35,6 @@ public final class JemmIntegration {
                 .getCategories().stream().filter(c -> c.getRecipeType().getRecipeClass().equals(model.getClass()))
                 .map(c -> c.getTitle().getString()).findFirst()
                 .orElseGet(() -> net.minecraft.network.chat.Component.translatable(kind(model).translationKey()).getString());
-    }
-    public static String title(EmiRecipe recipe, MultiblockWidget model) {
-        if (model instanceof NovaMultiblockWidget nova) return nova.title();
-        if (recipe instanceof JemmRecipeAccess access && access.mekpreview$title() != null) return access.mekpreview$title();
-        return title(model);
     }
     public static StructureKind kind(MultiblockWidget model) {
         for (Class<?> type = model.getClass(); type != null; type = type.getSuperclass()) {
