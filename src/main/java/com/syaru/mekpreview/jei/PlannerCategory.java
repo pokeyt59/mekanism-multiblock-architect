@@ -41,8 +41,10 @@ public final class PlannerCategory implements IRecipeCategory<PlannerRecipe> {
     public static final RecipeType<PlannerRecipe> TYPE = RecipeType.create(MekPreview.MOD_ID, "multiblocks", PlannerRecipe.class);
     /** Editors JEI has not drawn for this long give their GPU caches back. */
     private static final long IDLE_NANOS = 10_000_000_000L;
-    /** An editor drawn within this window counts as on screen (for typing and tests). */
+    /** An editor drawn within this window still accepts typed text. */
     private static final long VISIBLE_NANOS = 1_000_000_000L;
+    /** An editor drawn within this window is on the page JEI shows now. */
+    private static final long SHOWN_NANOS = 250_000_000L;
     private static final Map<PlannerRecipe, Page> PAGES = new IdentityHashMap<>();
     private final IDrawable icon;
 
@@ -118,12 +120,15 @@ public final class PlannerCategory implements IRecipeCategory<PlannerRecipe> {
         PAGES.clear();
     }
 
-    /** The planner page drawn most recently and its top-left corner on screen; for tests and diagnostics. */
+    /** The top planner page JEI is showing and its top-left corner on screen; for tests and diagnostics. */
     @Nullable public static Visible visible() {
-        Page latest = null;
-        for (var page : PAGES.values()) if (latest == null || page.lastDrawn > latest.lastDrawn) latest = page;
-        if (latest == null || System.nanoTime() - latest.lastDrawn > VISIBLE_NANOS) return null;
-        return new Visible(latest.ui.getWidget(), latest.originX, latest.originY);
+        long now = System.nanoTime();
+        Page top = null;
+        for (var page : PAGES.values()) {
+            if (now - page.lastDrawn > SHOWN_NANOS) continue;
+            if (top == null || page.originY < top.originY || page.originY == top.originY && page.originX < top.originX) top = page;
+        }
+        return top == null ? null : new Visible(top.ui.getWidget(), top.originX, top.originY);
     }
 
     public record Visible(JemmPreviewWidget editor, int x, int y) {}

@@ -22,10 +22,16 @@ jobs:
       # The in-game test sources are not part of `build`; compile them so they stay in step with the mod.
       - name: Compile in-game test sources
         run: ./gradlew compileGameTestJava compileServerTestJava 2>&1 | tee -a build.log; exit ${PIPESTATUS[0]}
-      - name: Report compiler errors
+      # Surface the failure as annotations, which stay readable where raw logs are not.
+      - name: Report build errors
         if: failure()
         run: |
-          errors=$(awk '
+          annotate() {
+            local body
+            body=$(head -c 60000 | sed 's/%/%25/g' | sed ':a;N;$!ba;s/\n/%0A/g')
+            if [ -n "$body" ]; then echo "::error title=$1::$body"; fi
+          }
+          awk '
             /\.java:[0-9]+: error:/ {
               if (msg) print msg
               match($0, /src\/[^:]+\.java/); file = substr($0, RSTART, RLENGTH)
@@ -33,7 +39,7 @@ jobs:
               sub(/^.*: error: /, ""); msg = "::error file=" file ",line=" line "::" $0; extra = 0; next
             }
             msg && extra < 4 { gsub(/^ +/, ""); msg = msg "%0A" $0; extra++; next }
-            END { if (msg) print msg }' build.log | head -40)
-          if [ -n "$errors" ]; then echo "$errors"; else
-            echo "::error::$(sed -n '/What went wrong/,/Try:/p' build.log | head -25 | sed ':a;N;$!ba;s/\n/%0A/g')"
-          fi
+            END { if (msg) print msg }' build.log | head -40
+          sed -n '/What went wrong/,/Try:/p' build.log | head -120 | annotate "What went wrong"
+          grep -E "Caused by|Exception|Could not|FAILED|failed|WARN|ERROR" build.log | grep -v "^BUILD FAILED" | head -80 | annotate "Causes and warnings"
+          tail -n 60 build.log | annotate "Log tail"

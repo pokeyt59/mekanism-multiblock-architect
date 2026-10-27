@@ -1,9 +1,9 @@
 package com.syaru.mekpreview.test;
 
 import com.syaru.mekpreview.client.*;
+import com.syaru.mekpreview.jei.*;
 import com.syaru.mekpreview.jemm.*;
 import com.syaru.mekpreview.structure.*;
-import com.lowdragmc.lowdraglib.emi.ModularWrapperWidget;
 import com.lowdragmc.lowdraglib.gui.widget.Widget;
 import giselle.jei_mekanism_multiblocks.client.jei.MultiblockWidget;
 import giselle.jei_mekanism_multiblocks.client.jei.category.DynamicTankCategory.DynamicTankWidget;
@@ -16,10 +16,7 @@ import mekanism.common.config.MekanismConfig;
 import mekanism.common.util.text.EnergyDisplay;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.contents.TranslatableContents;
-import dev.emi.emi.api.EmiApi;
-import dev.emi.emi.api.recipe.EmiRecipe;
-import dev.emi.emi.screen.RecipeScreen;
-import dev.emi.emi.screen.WidgetGroup;
+import mezz.jei.api.runtime.IRecipesGui;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
 import net.minecraft.client.gui.screens.*;
@@ -32,13 +29,15 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.WorldOptions;
 import net.minecraft.world.level.levelgen.presets.WorldPresets;
 import net.minecraftforge.api.distmarker.Dist;
+import net.minecraftforge.client.event.ScreenEvent;
+import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import java.nio.file.Files;
 import java.util.*;
 
-/** Isolated development client: exercises actual EMI controls against authoritative JEMM data. */
+/** Isolated development client: exercises actual JEI controls against authoritative JEMM data. */
 @Mod.EventBusSubscriber(modid = "mekpreview_test", value = Dist.CLIENT)
 public final class ClientSmoke {
     private static boolean requested, finished;
@@ -61,7 +60,7 @@ public final class ClientSmoke {
                 mc.options.save();
                 mc.resizeDisplay();
                 var flows = new WorldOpenFlows(mc, mc.getLevelSource());
-                String worldName = Boolean.getBoolean("mekpreview.tmrv") ? "MekPreviewTMRVQA" : "MekPreviewQA";
+                String worldName = "MekPreviewJEIQA";
                 if (Files.exists(mc.gameDirectory.toPath().resolve("saves/" + worldName + "/level.dat")))
                     flows.loadLevel(mc.screen, worldName);
                 else flows.createFreshLevel(worldName,
@@ -97,7 +96,8 @@ public final class ClientSmoke {
                 });
             }
             if (tick == 150) {
-                require(linkedRecipes().stream().allMatch(r -> r.getCategory() == JemmCategoryPlugin.CATEGORY),
+                require(MekaPlanJeiPlugin.runtime().getRecipeManager().createRecipeCategoryLookup().get()
+                                .noneMatch(c -> c.getRecipeType().getUid().getNamespace().equals("jei_mekanism_multiblocks")),
                         "JEMM equipment was not merged into one category");
                 require(linkedRecipes().size() >= 8, "Missing JEMM entries: " + linkedRecipes().size());
                 show(StructureKind.DYNAMIC_TANK);
@@ -199,7 +199,7 @@ public final class ClientSmoke {
                     }
                     System.out.println("MEKPREVIEW_NOVA_STRUCTURES_VERIFIED " + nova.size());
                     NovaSmoke.verify(nova.stream().map(r -> (NovaMultiblockWidget) JemmIntegration.model(r)).toList());
-                    EmiApi.displayRecipe(nova.get(0));
+                    MekaPlanJeiPlugin.show(nova.get(0));
                 }
                 if (net.minecraftforge.fml.ModList.get().isLoaded("morethermalevaporation")) {
                     require(thermal.stream().filter(r -> JemmIntegration.model(r).getClass().getName()
@@ -220,7 +220,7 @@ public final class ClientSmoke {
             }
             if (tick >= 800 && tick < 900 && (tick - 800) % 20 == 0) {
                 var thermal = linkedRecipes().stream().filter(r -> MtePreview.supports(JemmIntegration.model(r))).toList();
-                if (!thermal.isEmpty()) EmiApi.displayRecipe(thermal.get((tick - 800) / 20));
+                if (!thermal.isEmpty()) MekaPlanJeiPlugin.show(thermal.get((tick - 800) / 20));
             }
             if (tick >= 810 && tick < 910 && (tick - 810) % 20 == 0 && previewIfRecipe(mc) != null
                     && MtePreview.supports(preview(mc).model())) {
@@ -234,7 +234,7 @@ public final class ClientSmoke {
                 var recipe = linkedRecipes().stream().filter(r -> JemmIntegration.model(r).getClass().getName()
                         .equals("morethermalevaporation.client.jei.category.MoreEvaporationPlantCategory$UltimateEvaporationPlantWidget"))
                         .findFirst().orElseThrow();
-                EmiApi.displayRecipe(recipe);
+                MekaPlanJeiPlugin.show(recipe);
                 var model = JemmIntegration.model(recipe);
                 model.initialize();
                 previousOutput = metric(preview(mc), "max_speed").getValueLabel().getMessage().getString();
@@ -286,7 +286,7 @@ public final class ClientSmoke {
             if (tick == 1080) { verifyTurbineOutput(mc); capture(mc, "performance-05-restored.png"); }
             if (tick == 1100) {
                 mc.setScreen(null);
-                // EMI may have created a creative-inventory parent. End that menu
+                // The recipe viewer may have a creative-inventory parent. End that menu
                 // before switching this fixture to survival, as a normal UI close would.
                 mc.player.closeContainer();
                 mc.mouseHandler.releaseMouse();
@@ -343,7 +343,7 @@ public final class ClientSmoke {
             if (tick == 1220 && Boolean.getBoolean("mekpreview.placementSmoke")) finish(mc, "PASS: isolated right-click network placement and inventory-consuming batch placement.");
             if (tick >= 1220 && !Boolean.getBoolean("mekpreview.placementSmoke")) DesignFeaturesSmoke.tick(mc, tick);
             if (tick >= 1480) ConstructionAssistSmoke.tick(mc, tick);
-            if (tick == 1880) finish(mc, "PASS: vanilla inventory block selection and exact-NBT refill, placed material subtraction and visible-layer HUD, red incorrect block/orientation guides, once-only full-plan completion and recoverable configurable auto-hide; Nova recipe-name search and exact native EMI preview link; live whole/visible-layer inventory shortages; native settings and views persisted and restored across equipment; published Nova performance/recipes/upgrades/coils/parallel hardware; GPU-cached preview and hologram, layer switching without native recapture, static hologram cache reuse; live performance beside preview, native turbine size and rotor edits update output within two client ticks, MTE large-tier speed updates, materials switch preserved; unified equipment category including installed Nova/MTE structures, live settings beside 8 GT-style previews, native input exactly once, "
+            if (tick == 1880) finish(mc, "PASS: vanilla inventory block selection and exact-NBT refill, placed material subtraction and visible-layer HUD, red incorrect block/orientation guides, once-only full-plan completion and recoverable configurable auto-hide; Nova recipe-name search and exact native JEI preview link; live whole/visible-layer inventory shortages; native settings and views persisted and restored across equipment; published Nova performance/recipes/upgrades/coils/parallel hardware; GPU-cached preview and hologram, layer switching without native recapture, static hologram cache reuse; live performance beside preview, native turbine size and rotor edits update output within two client ticks, MTE large-tier speed updates, materials switch preserved; unified equipment category including installed Nova/MTE structures, live settings beside 8 GT-style previews, native input exactly once, "
                     + "exact JEMM block states and costs, 7x6x9 tank with 5 valves, advanced 7x8x5 fission with 4 fuel blocks, "
                     + "layers, textured holograms, movement and rotation, actual right-click network placement and inventory-consuming batch placement.");
         } catch (Throwable e) {
@@ -352,7 +352,7 @@ public final class ClientSmoke {
         }
     }
     private static JemmPreviewWidget previewIfRecipe(Minecraft mc) throws Exception {
-        return mc.screen instanceof RecipeScreen ? preview(mc) : null;
+        return mc.screen instanceof IRecipesGui ? preview(mc) : null;
     }
     private static void verifyMaterialGeometry(Blueprint blueprint) {
         Map<String, Integer> geometry = new TreeMap<>();
@@ -368,11 +368,11 @@ public final class ClientSmoke {
         return b.blocks().values().stream().filter(p -> p.blockId().equals("mekanism:" + id)
                 || p.blockId().equals("mekanismgenerators:" + id)).count();
     }
-    private static List<EmiRecipe> linkedRecipes() {
-        return EmiApi.getRecipeManager().getRecipes().stream().filter(r -> JemmIntegration.model(r) != null).toList();
+    private static List<PlannerRecipe> linkedRecipes() {
+        return MekaPlanJeiPlugin.recipes();
     }
     private static void show(StructureKind kind) {
-        EmiApi.displayRecipe(linkedRecipes().stream().filter(r -> JemmIntegration.kind(JemmIntegration.model(r)) == kind)
+        MekaPlanJeiPlugin.show(linkedRecipes().stream().filter(r -> JemmIntegration.kind(JemmIntegration.model(r)) == kind)
                 .filter(r -> JemmIntegration.model(r).getClass().getPackageName().equals("giselle.jei_mekanism_multiblocks.client.jei.category"))
                 .findFirst().orElseThrow(() -> new IllegalStateException("No JEMM entry for " + kind)));
     }
@@ -383,11 +383,28 @@ public final class ClientSmoke {
         return null;
     }
     static void press(Minecraft mc, String id) throws Exception {
-        var control = Objects.requireNonNull(find(preview(mc), id), id);
+        var page = page(mc);
+        var control = Objects.requireNonNull(find(page.editor(), id), id);
         var pos = control.getPosition();
-        double x = pos.x + control.getSize().width / 2.0, y = pos.y + control.getSize().height / 2.0;
-        require(mc.screen.mouseClicked(x, y, 0), "EMI did not consume " + id);
-        if (mc.screen instanceof RecipeScreen) mc.screen.mouseReleased(x, y, 0);
+        double x = page.x() + pos.x + control.getSize().width / 2.0, y = page.y() + pos.y + control.getSize().height / 2.0;
+        require(click(mc, x, y), "JEI did not route the click to " + id);
+    }
+    /** Mouse, key and text input the way Minecraft delivers it: Forge's screen events first (JEI listens there), then the screen. */
+    static boolean click(Minecraft mc, double x, double y) {
+        var screen = mc.screen;
+        boolean handled = MinecraftForge.EVENT_BUS.post(new ScreenEvent.MouseButtonPressed.Pre(screen, x, y, 0)) || screen.mouseClicked(x, y, 0);
+        // A click may close the screen (projection does); only release on a screen that is still open.
+        if (mc.screen == screen && !MinecraftForge.EVENT_BUS.post(new ScreenEvent.MouseButtonReleased.Pre(screen, x, y, 0)))
+            screen.mouseReleased(x, y, 0);
+        return handled;
+    }
+    static boolean type(Minecraft mc, char character) {
+        var screen = mc.screen;
+        return MinecraftForge.EVENT_BUS.post(new ScreenEvent.CharacterTyped.Pre(screen, character, 0)) || screen.charTyped(character, 0);
+    }
+    static boolean key(Minecraft mc, int key) {
+        var screen = mc.screen;
+        return MinecraftForge.EVENT_BUS.post(new ScreenEvent.KeyPressed.Pre(screen, key, 0, 0)) || screen.keyPressed(key, 0, 0);
     }
     private static void clickNativeWidth(Minecraft mc) throws Exception {
         var root = preview(mc);
@@ -398,17 +415,16 @@ public final class ClientSmoke {
         for (var parent = button.getParent(); parent != null; parent = parent.getParent()) {
             x += parent.getX(); y += parent.getY();
         }
-        var pos = find(root, "jemm-settings").getPosition(); x += pos.x; y += pos.y;
-        require(mc.screen.mouseClicked(x, y, 0), "Native JEMM width control did not receive click");
-        mc.screen.mouseReleased(x, y, 0);
+        var pos = find(root, "jemm-settings").getPosition(); var page = page(mc);
+        x += page.x() + pos.x; y += page.y() + pos.y;
+        require(click(mc, x, y), "Native JEMM width control did not receive click");
     }
     static JemmPreviewWidget preview(Minecraft mc) throws Exception {
-        require(mc.screen instanceof RecipeScreen, "Expected EMI, got " + mc.screen);
-        var field = RecipeScreen.class.getDeclaredField("currentPage"); field.setAccessible(true);
-        @SuppressWarnings("unchecked") var groups = (List<WidgetGroup>) field.get(mc.screen);
-        return groups.stream().flatMap(g -> g.widgets.stream())
-                .filter(w -> w instanceof ModularWrapperWidget wrapper && wrapper.modular.getWidget() instanceof JemmPreviewWidget)
-                .map(w -> (JemmPreviewWidget) ((ModularWrapperWidget) w).modular.getWidget()).findFirst().orElseThrow();
+        return page(mc).editor();
+    }
+    static PlannerCategory.Visible page(Minecraft mc) {
+        require(mc.screen instanceof IRecipesGui, "Expected JEI, got " + mc.screen);
+        return Objects.requireNonNull(PlannerCategory.visible(), "No planner page on screen");
     }
     private static void verify(Minecraft mc) throws Exception {
         verify(mc, true);

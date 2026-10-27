@@ -2,27 +2,29 @@ package com.syaru.mekpreview.test;
 
 import com.syaru.mekpreview.client.design.*;
 import com.syaru.mekpreview.client.BlockResolver;
+import com.syaru.mekpreview.jei.*;
 import com.syaru.mekpreview.jemm.*;
 import com.syaru.mekpreview.structure.*;
-import dev.emi.emi.api.EmiApi;
-import dev.emi.emi.api.recipe.EmiRecipe;
-import dev.emi.emi.screen.RecipeScreen;
-import dev.emi.emi.screen.WidgetGroup;
 import giselle.jei_mekanism_multiblocks.client.jei.category.DynamicTankCategory.DynamicTankWidget;
+import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.nbt.*;
 import java.util.*;
+import java.util.function.Predicate;
 
-/** Real EMI/LDLib widgets, isolated development inventory, and on-disk design persistence. */
+/** Real JEI/LDLib widgets, isolated development inventory, and on-disk design persistence. */
 final class DesignFeaturesSmoke {
     private static FavoritesStore.Favorite tank, novaFavorite;
     private static String material;
     private static long required;
     private static int selectedRecipe, linkedIndex;
     private static NovaMultiblockWidget nova;
+    private static NovaRecipeLink.Link rawLink;
     static void tick(Minecraft mc, int tick) throws Exception {
-        if (tick == 1220) EmiApi.displayRecipe(EmiApi.getRecipeManager().getRecipes().stream()
-                .filter(r -> JemmIntegration.model(r) instanceof DynamicTankWidget).findFirst().orElseThrow());
+        if (tick == 1220) MekaPlanJeiPlugin.show(MekaPlanJeiPlugin.recipes().stream()
+                .filter(r -> r.model() instanceof DynamicTankWidget).findFirst().orElseThrow());
         if (tick == 1240) {
             var root = ClientSmoke.preview(mc); root.showPanel("materials"); root.materialsPanel().refresh();
             var row = root.materialsPanel().rows().stream().filter(r -> r.required() > 3).findFirst().orElseThrow();
@@ -50,7 +52,7 @@ final class DesignFeaturesSmoke {
             ClientSmoke.press(mc, "favorites"); ClientSmoke.press(mc, "favorite-name");
             String label = "QA tank " + UUID.randomUUID();
             for (char character : label.toCharArray())
-                require(mc.screen.charTyped(character, 0), "Favorite name did not accept typed character");
+                require(ClientSmoke.type(mc, character), "Favorite name did not accept typed character");
             ClientSmoke.press(mc, "favorite-save");
             tank = FavoriteClient.store().list().stream().filter(f -> f.label().equals(label)).findFirst().orElseThrow();
             root.model().setDimensionWidth(3); root.model().setDimensionHeight(3);
@@ -65,9 +67,9 @@ final class DesignFeaturesSmoke {
         }
         boolean hasNova = net.minecraftforge.fml.ModList.get().isLoaded("mekanism_more_multiblock");
         if (tick == 1340 && hasNova) {
-            var recipe = EmiApi.getRecipeManager().getRecipes().stream().filter(r -> JemmIntegration.model(r) instanceof NovaMultiblockWidget n
+            var recipe = MekaPlanJeiPlugin.recipes().stream().filter(r -> r.model() instanceof NovaMultiblockWidget n
                     && n.performance().kind().equals("BLAST_FURNACE")).findFirst().orElseThrow();
-            nova = (NovaMultiblockWidget) JemmIntegration.model(recipe); EmiApi.displayRecipe(recipe);
+            nova = (NovaMultiblockWidget) recipe.model(); MekaPlanJeiPlugin.show(recipe);
         }
         if (tick == 1360 && hasNova) {
             ClientSmoke.press(mc, "nova-search");
@@ -75,11 +77,11 @@ final class DesignFeaturesSmoke {
         if (tick == 1364 && hasNova) {
             var root = ClientSmoke.preview(mc);
             var screen = mc.screen;
-            require(screen.keyPressed(org.lwjgl.glfw.GLFW.GLFW_KEY_E, 0, 0) && mc.screen == screen,
+            require(ClientSmoke.key(mc, org.lwjgl.glfw.GLFW.GLFW_KEY_E) && mc.screen == screen,
                     "Inventory shortcut closed the recipe while search was focused");
             var query = nova.performance().recipes().get(Math.min(3, nova.performance().recipes().size() - 1)).name().getString();
             for (char character : query.toCharArray())
-                require(mc.screen.charTyped(character, 0), "Search field did not accept typed character");
+                require(ClientSmoke.type(mc, character), "Search field did not accept typed character");
             require(!root.searchPanel().matches().isEmpty(), "Nova name search had no results");
             require(root.searchPanel().matches().size() < nova.performance().recipes().size(), "Typed search did not filter recipes");
             var input = (com.lowdragmc.lowdraglib.gui.widget.TextFieldWidget) find(root, "nova-query");
@@ -88,10 +90,9 @@ final class DesignFeaturesSmoke {
         }
         if (tick == 1370 && hasNova) ClientSmoke.capture(mc, "features-04-nova-search.png");
         if (tick == 1372 && hasNova) {
-            var root = ClientSmoke.preview(mc);
-            var pos = root.searchPanel().getPosition();
-            require(mc.screen.mouseClicked(pos.x + 65, pos.y + 36, 0), "Nova search row did not accept click");
-            mc.screen.mouseReleased(pos.x + 65, pos.y + 36, 0);
+            var page = ClientSmoke.page(mc);
+            var pos = page.editor().searchPanel().getPosition();
+            require(ClientSmoke.click(mc, page.x() + pos.x + 65, page.y() + pos.y + 36), "Nova search row did not accept click");
         }
         if (tick == 1380 && hasNova) {
             var root = ClientSmoke.preview(mc);
@@ -103,35 +104,25 @@ final class DesignFeaturesSmoke {
         }
         if (tick == 1400 && hasNova) {
             verifyRestored(ClientSmoke.preview(mc), novaFavorite);
-            var cooking = EmiApi.getRecipeManager().getRecipes().stream().filter(r -> r instanceof dev.emi.emi.recipe.EmiCookingRecipe
-                    && r.getCategory().id.getPath().equals("smelting")).findFirst().orElseThrow();
-            require(NovaRecipeLink.find(cooking).stream().anyMatch(l -> l.model().performance().kind().equals("SMELTING")), "Vanilla EMI recipe-ID link did not match Nova smelter");
-            var primitive = EmiApi.getRecipeManager().getRecipes().stream().filter(r -> r instanceof JemmRecipeAccess a
-                    && a.mekpreview$source() != null && a.mekpreview$source().getClass().getName().endsWith("$PbfDisplayRecipe"))
-                    .findFirst().orElseThrow();
-            require(NovaRecipeLink.hasFooter(primitive) && NovaRecipeLink.find(primitive).stream()
+            var manager = MekaPlanJeiPlugin.runtime().getRecipeManager();
+            var smelting = manager.createRecipeLookup(RecipeTypes.SMELTING).get().findFirst().orElseThrow();
+            require(NovaRecipeLink.find(smelting, smelting.getId()).stream().anyMatch(l -> l.model().performance().kind().equals("SMELTING")), "Vanilla JEI recipe-ID link did not match Nova smelter");
+            Object primitive = recipeWhere(manager, r -> r.getClass().getName().endsWith("$PbfDisplayRecipe"));
+            require(hasButton(manager, primitive) && NovaRecipeLink.find(primitive, null).stream()
                     .anyMatch(l -> l.model().performance().kind().equals("PBF")), "Primitive blast-furnace preview link missing");
             linkedIndex = nova.performance().recipes().size() - 1;
             Object source = nova.performance().recipes().get(linkedIndex).nativeRecipe();
-            EmiRecipe raw = EmiApi.getRecipeManager().getRecipes().stream().filter(r -> r instanceof JemmRecipeAccess a
-                    && a.mekpreview$source() == source).findFirst().orElseThrow();
-            require(NovaRecipeLink.find(raw).stream().anyMatch(l -> l.model() == nova && l.recipeIndex() == linkedIndex), "EMI native recipe link was not exact");
-            nova.setRecipeIndex(0); EmiApi.displayRecipe(raw);
+            Object raw = recipeWhere(manager, r -> r == source);
+            rawLink = NovaRecipeLink.find(raw, null).stream().filter(l -> l.model() == nova && l.recipeIndex() == linkedIndex)
+                    .findFirst().orElseThrow(() -> new IllegalStateException("JEI native recipe link was not exact"));
+            require(hasButton(manager, raw), "Missing JEI equipment-preview button");
+            nova.setRecipeIndex(0);
         }
-        if (tick == 1405 && hasNova) ClientSmoke.capture(mc, "features-05-emi-link-button.png");
-        if (tick == 1410 && hasNova) {
-            var field = RecipeScreen.class.getDeclaredField("currentPage"); field.setAccessible(true);
-            @SuppressWarnings("unchecked") var groups = (List<WidgetGroup>) field.get(mc.screen);
-            var button = groups.stream().flatMap(g -> g.widgets.stream())
-                    .filter(w -> w.getClass().getName().startsWith(NovaRecipeLink.class.getName() + "$"))
-                    .findFirst().orElseThrow(() -> new IllegalStateException("Missing EMI equipment-preview button"));
-            var b = button.getBounds();
-            require(button.mouseClicked(b.x() + b.width() / 2, b.y() + 8, 0), "EMI preview button did not open the linked design");
-        }
+        if (tick == 1410 && hasNova) require(NovaRecipeLink.open(rawLink), "JEI preview button did not open the linked design");
         if (tick == 1430) {
             if (hasNova) {
-                require(ClientSmoke.preview(mc).model() == nova && nova.recipeIndex() == linkedIndex, "EMI linked the wrong Nova operation");
-                ClientSmoke.capture(mc, "features-06-emi-linked-design.png");
+                require(ClientSmoke.preview(mc).model() == nova && nova.recipeIndex() == linkedIndex, "JEI linked the wrong Nova operation");
+                ClientSmoke.capture(mc, "features-06-jei-linked-design.png");
             }
             require(FavoriteClient.open(tank), "Cross-equipment favorite could not be opened");
         }
@@ -139,7 +130,7 @@ final class DesignFeaturesSmoke {
             verifyRestored(ClientSmoke.preview(mc), tank);
             FavoriteClient.store().remove(tank.id());
             if (novaFavorite != null) FavoriteClient.store().remove(novaFavorite.id());
-            System.out.println("MEKPREVIEW_DESIGN_FEATURES_VERIFIED search/native EMI footer link/inventory shortages/visible layers/persistent and cross-equipment favorites");
+            System.out.println("MEKPREVIEW_DESIGN_FEATURES_VERIFIED search/native JEI recipe button link/inventory shortages/visible layers/persistent and cross-equipment favorites");
         }
     }
     private static void verifyRestored(JemmPreviewWidget root, FavoritesStore.Favorite favorite) throws Exception {
@@ -148,6 +139,24 @@ final class DesignFeaturesSmoke {
         var view = root.settings();
         require(view.layerMode.name().equals(favorite.view().mode()) && view.layer == favorite.view().layer()
                 && view.rotation == favorite.view().rotation() && view.hideShell == favorite.view().hideShell(), "Saved layer/rotation/shell view was not restored");
+    }
+    /** The first JEI recipe, in any category including hidden ones, that passes the test. */
+    private static Object recipeWhere(IRecipeManager manager, Predicate<Object> test) {
+        return manager.createRecipeCategoryLookup().includeHidden().get()
+                .flatMap(c -> manager.createRecipeLookup(c.getRecipeType()).includeHidden().get().map(r -> (Object) r))
+                .filter(test).findFirst().orElseThrow(() -> new IllegalStateException("No matching JEI recipe"));
+    }
+    /** Whether JEI would show MekaPlan's equipment-preview button beside this recipe. */
+    private static boolean hasButton(IRecipeManager manager, Object raw) {
+        return manager.createRecipeCategoryLookup().includeHidden().get()
+                .anyMatch(c -> manager.createRecipeLookup(c.getRecipeType()).includeHidden().get().anyMatch(r -> r == raw)
+                        && hasButton(manager, c, raw));
+    }
+    private static <T> boolean hasButton(IRecipeManager manager, IRecipeCategory<T> category, Object raw) {
+        T recipe = category.getRecipeType().getRecipeClass().cast(raw);
+        var focus = MekaPlanJeiPlugin.runtime().getJeiHelpers().getFocusFactory().getEmptyFocusGroup();
+        return manager.createRecipeLayoutDrawable(category, recipe, focus)
+                .map(layout -> new NovaRecipeLink.ButtonFactory().createButtonController(layout) != null).orElse(false);
     }
     private static com.lowdragmc.lowdraglib.gui.widget.Widget find(com.lowdragmc.lowdraglib.gui.widget.Widget root, String id) {
         if (id.equals(root.getId())) return root;

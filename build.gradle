@@ -15,12 +15,12 @@ def upstream = [
     'local:ldlib-forge-1.20.1:1.0.50': 'maven.modrinth:B1CBVXHX:CIHXdHUw',
     'local:mekanism-1.20.1:10.4.16.80': 'maven.modrinth:Ce6I4WUE:uxe1WQp4',
     'local:jemm-1.20.1:4.27': 'curse.maven:just-enough-mekanism-multiblocks-898746:9068209',
-    // JEI is the recipe viewer for this port. The code only uses API from 15.38 onwards;
-    // the build compiles and runs against a current 1.20.1 release.
-    'local:jei-1.20.1-forge:15.74.0.230': 'mezz.jei:jei-1.20.1-forge:15.74.0.230',
     'local:mekanism-generators-1.20.1:10.4.16.80': 'maven.modrinth:OFVYKsAk:Th4Czz4N'
 ]
 def modDependency = { notation -> fg.deobf(project.hasProperty('localDeps') ? notation : upstream[notation]) }
+// JEI is the recipe viewer for this port. The code only uses API from JEI 15.38 onwards;
+// the build compiles and runs against a current 1.20.1 release from JEI's own Maven.
+def jeiVersion = '15.74.0.230'
 sourceSets {
     test { java.srcDir 'src/gameTest/java/com/syaru/mekpreview/test/fixture' }
     gameTest {
@@ -67,9 +67,17 @@ minecraft {
 }
 dependencies {
     minecraft 'net.minecraftforge:forge:1.20.1-47.4.18'
-    for (notation in ['local:ldlib-forge-1.20.1:1.0.50', 'local:mekanism-1.20.1:10.4.16.80',
-                      'local:jemm-1.20.1:4.27', 'local:jei-1.20.1-forge:15.74.0.230']) {
+    for (notation in ['local:ldlib-forge-1.20.1:1.0.50', 'local:mekanism-1.20.1:10.4.16.80', 'local:jemm-1.20.1:4.27']) {
         add(project.hasProperty('serverOnly') ? 'compileOnly' : 'implementation', modDependency(notation))
+    }
+    // JEI's own Maven: compile against the API jars, run with the full mod. Non-transitive, because
+    // JEI's POM also lists development-only modules and an optional config library.
+    if (project.hasProperty('localDeps')) {
+        add(project.hasProperty('serverOnly') ? 'compileOnly' : 'implementation', fg.deobf("local:jei-1.20.1-forge:${jeiVersion}"))
+    } else {
+        compileOnly fg.deobf("mezz.jei:jei-1.20.1-common-api:${jeiVersion}") { transitive = false }
+        compileOnly fg.deobf("mezz.jei:jei-1.20.1-forge-api:${jeiVersion}") { transitive = false }
+        if (!project.hasProperty('serverOnly')) runtimeOnly fg.deobf("mezz.jei:jei-1.20.1-forge:${jeiVersion}") { transitive = false }
     }
     if (!project.hasProperty('serverOnly')) {
         runtimeOnly modDependency('local:mekanism-generators-1.20.1:10.4.16.80')
