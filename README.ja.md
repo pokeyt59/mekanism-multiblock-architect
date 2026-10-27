@@ -1,5 +1,7 @@
 # MekaPlan
 
+> **非公式のJEI版です。** syaru氏の[MekaPlan](https://github.com/syarukasu/mekanism-multiblock-architect)をJEIだけで動くように移植したフォークで、EMIとTooManyRecipeViewersは不要です（同時導入しないでください）。JEI 15.38以降が必要です。以下の説明にはEMI版の記述が残っています。変更点は[README](README.md)を参照してください。
+
 Minecraft 1.20.1 / Forge向け。Just Enough Mekanism Multiblocks（JEMM）の既存EMIページに、
 GT風のLDLib製3Dプレビューと、Litematica風の建築用ホログラムを追加します。
 設備は「Mekanism マルチブロック設備」の1カテゴリーに集約し、ページで切り替えます。

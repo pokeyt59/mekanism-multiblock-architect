@@ -1,3 +1,13 @@
+# 0.1.0-alpha.9-jei.1 (unofficial JEI port)
+
+- Host the planner in JEI instead of EMI. One JEI category collects the JEMM, Mekanism Extras, More Thermal Evaporation and Nova designs and hides the pages they came from.
+- EMI and TooManyRecipeViewers are no longer needed; JEI 15.38 or newer is required.
+- Nova's recipe-to-machine link is a button beside JEI recipes.
+- Planner search and favorites boxes receive typing before JEI's shortcuts.
+- Planner pages free their preview GPU buffers once JEI stops drawing them.
+
+Based on 0.1.0-alpha.9. Placement protocol 2 is unchanged.
+
 # 0.1.0-alpha.9
 
 - Remove the five-item limit from the construction material HUD.

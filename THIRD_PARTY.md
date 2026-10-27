@@ -5,9 +5,8 @@ MekaPlan is an independent MIT-licensed addon. Upstream projects retain their ow
 - [Mekanism](https://github.com/mekanism/Mekanism) — blocks, models and multiblock systems.
 - [JEMM](https://github.com/gisellevonbingen-Minecraft/JustEnoughMekanismMultiblocks) — designs, settings, materials and performance.
 - [LDLib](https://github.com/Low-Drag-MC/LDLib-MultiLoader) — 3D preview UI.
-- [EMI](https://github.com/emilyploszaj/emi) — recipe viewer.
-- [TMRV](https://modrinth.com/mod/tmrv) — JEI API compatibility.
-- [JEI](https://github.com/mezz/JustEnoughItems) — alternative JEI API provider.
+- [JEI](https://github.com/mezz/JustEnoughItems) — recipe viewer hosting the planner in this port.
+- [MekaPlan](https://github.com/syarukasu/mekanism-multiblock-architect) — the original EMI version this port is based on (MIT).
 
 Optional integrations use Nova Mekanism, More Thermal Evaporation, More Thermal Evaporation Compat and Mekanism Extras. They are not bundled or required.
 
