@@ -150,21 +150,42 @@ public final class PlannerCategory implements IRecipeCategory<PlannerRecipe> {
         void dispose() { ui.modularUI.triggerCloseListeners(); }
     }
 
-    /** JEI routes mouse input here in page coordinates. Typed text arrives through ClientEvents instead. */
+    /**
+     * JEI routes mouse input here in page coordinates. Typed text arrives through ClientEvents instead.
+     * Input for a page that is not currently built is ignored; the next draw rebuilds it.
+     */
     private record Input(PlannerRecipe recipe) implements IJeiGuiEventListener {
+        @Nullable private ModularWrapper<JemmPreviewWidget> ui() {
+            var page = PAGES.get(recipe);
+            return page == null ? null : page.ui;
+        }
         @Override public ScreenRectangle getArea() {
             return new ScreenRectangle(0, 0, JemmPreviewWidget.WIDTH, JemmPreviewWidget.HEIGHT);
         }
-        @Override public void mouseMoved(double x, double y) { page(recipe).ui.mouseMoved(x, y); }
-        @Override public boolean mouseClicked(double x, double y, int button) { return page(recipe).ui.mouseClicked(x, y, button); }
-        @Override public boolean mouseReleased(double x, double y, int button) { return page(recipe).ui.mouseReleased(x, y, button); }
-        @Override public boolean mouseDragged(double x, double y, int button, double dx, double dy) {
-            return page(recipe).ui.mouseDragged(x, y, button, dx, dy);
+        @Override public void mouseMoved(double x, double y) {
+            var ui = ui();
+            if (ui != null) ui.mouseMoved(x, y);
         }
-        @Override public boolean mouseScrolled(double x, double y, double delta) { return page(recipe).ui.mouseScrolled(x, y, delta); }
+        @Override public boolean mouseClicked(double x, double y, int button) {
+            var ui = ui();
+            return ui != null && ui.mouseClicked(x, y, button);
+        }
+        @Override public boolean mouseReleased(double x, double y, int button) {
+            var ui = ui();
+            return ui != null && ui.mouseReleased(x, y, button);
+        }
+        @Override public boolean mouseDragged(double x, double y, int button, double dx, double dy) {
+            var ui = ui();
+            return ui != null && ui.mouseDragged(x, y, button, dx, dy);
+        }
+        @Override public boolean mouseScrolled(double x, double y, double delta) {
+            var ui = ui();
+            return ui != null && ui.mouseScrolled(x, y, delta);
+        }
         @Override public boolean keyPressed(double x, double y, int key, int scan, int modifiers) {
             // Straight to the widgets: the wrapper's own screen fallback would treat E or Esc as "close".
-            return page(recipe).ui.modularUI.mainGroup.keyPressed(key, scan, modifiers);
+            var ui = ui();
+            return ui != null && ui.modularUI.mainGroup.keyPressed(key, scan, modifiers);
         }
     }
 
